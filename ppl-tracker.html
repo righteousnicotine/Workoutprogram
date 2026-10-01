@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1B2838">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PPL Log">
+<title>PPL Strength + Size</title>
+<style>
+  :root {
+    --bg: #0f1720;
+    --card: #1b2838;
+    --card2: #243447;
+    --line: #334155;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --push: #dc2626;
+    --pull: #2563eb;
+    --legs: #16a34a;
+    --gold: #d97706;
+    --input: #0b1220;
+    --accent: #c45c26;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { padding-bottom: 88px; }
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: linear-gradient(#1b2838, #1b2838ee);
+    backdrop-filter: blur(8px);
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .02em; }
+  header p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+  .tabs { display: flex; gap: 6px; padding: 10px 12px 0; overflow-x: auto; }
+  .tab {
+    border: 0; background: var(--card2); color: var(--muted);
+    padding: 8px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .tab.on { color: #fff; }
+  .tab.push.on { background: var(--push); }
+  .tab.pull.on { background: var(--pull); }
+  .tab.legs.on { background: var(--legs); }
+  .tab.more.on { background: var(--gold); color: #111; }
+  .wrap { padding: 12px; max-width: 720px; margin: 0 auto; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%; background: var(--input); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+    font-size: 16px; /* iOS zoom lock */
+  }
+  textarea { min-height: 64px; resize: vertical; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .ex { margin-bottom: 10px; }
+  .ex h3 { margin: 0 0 8px; font-size: 15px; }
+  .ex.main h3 { color: #fbbf24; }
+  .target { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .sets { display: grid; grid-template-columns: 28px 1fr 1fr; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .sn { font-size: 12px; color: var(--muted); text-align: center; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button.primary {
+    width: 100%; border: 0; background: var(--accent); color: #fff;
+    font-weight: 700; padding: 14px; border-radius: 12px; font-size: 16px;
+  }
+  button.ghost {
+    width: 100%; border: 1px solid var(--line); background: transparent; color: var(--text);
+    padding: 12px; border-radius: 12px; font-size: 14px; font-weight: 600;
+  }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    position: fixed; left: 16px; right: 16px; bottom: 96px;
+    background: #14532d; color: #dcfce7; padding: 12px 14px; border-radius: 12px;
+    font-size: 14px; display: none; z-index: 50; text-align: center;
+  }
+  .hint { font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .e1rm { font-size: 12px; color: #fbbf24; margin-top: 4px; }
+  footer.dock {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #111827; border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    gap: 6px;
+  }
+  footer.dock button { border: 0; background: var(--card2); color: var(--text); padding: 10px 6px; border-radius: 10px; font-size: 12px; font-weight: 700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>3-DAY PPL — STRENGTH + SIZE</h1>
+  <p id="sub">Logs save on this phone. Export when you want a tweak.</p>
+</header>
+<div class="tabs" id="tabs"></div>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast"></div>
+<footer class="dock">
+  <button onclick="saveAll()">Save</button>
+  <button onclick="exportText()">Export to Grok</button>
+  <button onclick="copyExport()">Copy summary</button>
+</footer>
+
+<script>
+const KEY = "ppl-tracker-v1";
+const PROGRAM = {
+  push: {
+    name: "Push", color: "push",
+    lifts: [
+      { id: "bench", name: "Barbell Bench Press", target: "4 × 4–6", sets: 4, main: true },
+      { id: "ohp", name: "Overhead Press", target: "3 × 5–6", sets: 3 },
+      { id: "incline", name: "Incline DB Press 30°", target: "3 × 8–10", sets: 3 },
+      { id: "dip", name: "Weighted Dip / CG Bench", target: "3 × 6–8", sets: 3 },
+      { id: "lat", name: "DB Lateral Raise", target: "3 × 12–15", sets: 3 },
+      { id: "tri", name: "Pressdown / Skull Crusher", target: "3 × 10–12", sets: 3 },
+      { id: "pu", name: "Optional Push-up AMRAP", target: "1 × AMRAP", sets: 1 }
+    ]
+  },
+  pull: {
+    name: "Pull", color: "pull",
+    lifts: [
+      { id: "pullup", name: "Weighted Pull-up / Pulldown", target: "4 × 5–8", sets: 4, main: true },
+      { id: "row", name: "Barbell Bent-Over Row", target: "4 × 5–8", sets: 4 },
+      { id: "rdl", name: "Romanian Deadlift", target: "3 × 6–8", sets: 3 },
+      { id: "face", name: "Face Pull / Rear Delt", target: "3 × 12–15", sets: 3 },
+      { id: "curl", name: "Barbell / EZ Curl", target: "3 × 8–10", sets: 3 },
+      { id: "hammer", name: "Hammer Curl", target: "2 × 10–12", sets: 2 },
+      { id: "farm", name: "Optional Farmers / Shrugs", target: "2 × carry / 10–12", sets: 2 }
+    ]
+  },
+  legs: {
+    name: "Legs", color: "legs",
+    lifts: [
+      { id: "squat", name: "Back Squat", target: "4 × 4–6", sets: 4, main: true },
+      { id: "press", name: "Leg Press / Front Squat", target: "3 × 8–10", sets: 3 },
+      { id: "lunge", name: "Walking Lunge / Bulgarian", target: "3 × 8–10 / leg", sets: 3 },
+      { id: "curl", name: "Leg Curl", target: "3 × 10–12", sets: 3 },
+      { id: "calf", name: "Standing Calf Raise", target: "4 × 8–12", sets: 4 },
+      { id: "core", name: "Hanging Knee Raise / Plank", target: "3 × 10–12 or 40–60s", sets: 3 },
+      { id: "ht", name: "Optional Hip Thrust / BE", target: "2 × 8–12", sets: 2 }
+    ]
+  }
+};
+
+const emptySession = (day) => ({
+  date: "", bw: "", sleep: "", energy: "", minutes: "", notes: "",
+  lifts: Object.fromEntries(PROGRAM[day].lifts.map(l => [l.id, {
+    rpe: "", notes: "",
+    sets: Array.from({length: l.sets}, () => ({w:"", r:""}))
+  }]))
+});
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {
+    week: 1,
+    checkin: {},
+    sessions: {
+      push: {1: emptySession("push"), 2: emptySession("push"), 3: emptySession("push"), 4: emptySession("push")},
+      pull: {1: emptySession("pull"), 2: emptySession("pull"), 3: emptySession("pull"), 4: emptySession("pull")},
+      legs: {1: emptySession("legs"), 2: emptySession("legs"), 3: emptySession("legs"), 4: emptySession("legs")}
+    }
+  };
+}
+let state = load();
+let view = { page: "push", week: state.week || 1 };
+
+function saveAll() {
+  localStorage.setItem(KEY, JSON.stringify(state));
+  toast("Saved on this phone");
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display = "block";
+  setTimeout(() => t.style.display = "none", 1800);
+}
+
+function e1rm(sets) {
+  let best = 0;
+  for (const s of sets) {
+    const w = parseFloat(s.w), r = parseFloat(s.r);
+    if (w && r) best = Math.max(best, w * (1 + r / 30));
+  }
+  return best ? best.toFixed(1) : "";
+}
+
+function session() {
+  return state.sessions[view.page][view.week];
+}
+
+function renderTabs() {
+  const el = document.getElementById("tabs");
+  el.innerHTML = ["push","pull","legs","check"].map(p => {
+    const label = p === "check" ? "Check-in" : PROGRAM[p].name;
+    const cls = p === "check" ? "more" : p;
+    return `<button class="tab ${cls} ${view.page===p?"on":""}" onclick="switchPage('${p}')">${label}</button>`;
+  }).join("") +
+  [1,2,3,4].map(w => `<button class="tab ${view.week===w?"on":""}" style="${view.week===w?"background:#334155;color:#fff":""}" onclick="switchWeek(${w})">W${w}</button>`).join("");
+}
+
+function switchPage(p){ view.page=p; render(); }
+function switchWeek(w){ view.week=w; state.week=w; render(); }
+
+function bindVal(obj, key, val) { obj[key] = val; }
+
+function renderDay() {
+  const day = view.page;
+  const s = session();
+  const prog = PROGRAM[day];
+  let html = `
+    <div class="card">
+      <div class="meta">
+        <div><label>Date</label><input type="date" value="${s.date||""}" oninput="session().date=this.value"></div>
+        <div><label>Bodyweight</label><input inputmode="decimal" value="${s.bw||""}" placeholder="lb" oninput="session().bw=this.value"></div>
+        <div><label>Sleep (hrs)</label><input inputmode="decimal" value="${s.sleep||""}" oninput="session().sleep=this.value"></div>
+        <div><label>Energy 1–10</label><input inputmode="numeric" value="${s.energy||""}" oninput="session().energy=this.value"></div>
+        <div><label>Session min</label><input inputmode="numeric" value="${s.minutes||""}" oninput="session().minutes=this.value"></div>
+      </div>
+      <div style="margin-top:8px"><label>How did it feel?</label>
+        <textarea oninput="session().notes=this.value" placeholder="Shoulders ok, bench felt strong…">${s.notes||""}</textarea>
+      </div>
+    </div>`;
+  for (const lift of prog.lifts) {
+    if (!s.lifts[lift.id]) s.lifts[lift.id] = { rpe:"", notes:"", sets: Array.from({length:lift.sets},()=>({w:"",r:""})) };
+    const L = s.lifts[lift.id];
+    const est = e1rm(L.sets);
+    html += `<div class="card ex ${lift.main?"main":""}">
+      <h3>${lift.main?"★ ":""}${lift.name} <span class="target">${lift.target}</span></h3>`;
+    L.sets.forEach((set,i) => {
+      html += `<div class="sets">
+        <div class="sn">S${i+1}</div>
+        <input inputmode="decimal" placeholder="Weight" value="${set.w||""}" oninput="session().lifts['${lift.id}'].sets[${i}].w=this.value; updateE1('${lift.id}')">
+        <input inputmode="numeric" placeholder="Reps" value="${set.r||""}" oninput="session().lifts['${lift.id}'].sets[${i}].r=this.value; updateE1('${lift.id}')">
+      </div>`;
+    });
+    html += `<div class="grid2">
+      <div><label>Top RPE</label><input inputmode="decimal" value="${L.rpe||""}" oninput="session().lifts['${lift.id}'].rpe=this.value"></div>
+      <div><label>Notes</label><input value="${L.notes||""}" oninput="session().lifts['${lift.id}'].notes=this.value"></div>
+    </div>
+    <div class="e1rm" id="e1-${lift.id}">${est ? "e1RM ≈ "+est+" lb" : ""}</div>
+    </div>`;
+  }
+  html += `<div class="stack"><button class="primary" onclick="saveAll()">Save this session</button></div>`;
+  return html;
+}
+
+function updateE1(id) {
+  const L = session().lifts[id];
+  const el = document.getElementById("e1-"+id);
+  if (el) {
+    const est = e1rm(L.sets);
+    el.textContent = est ? "e1RM ≈ "+est+" lb" : "";
+  }
+}
+
+function renderCheck() {
+  const q = [
+    ["done","Sessions completed (0–3)"],
+    ["pain","Any pain? Where?"],
+    ["pump","Pumps 1–10"],
+    ["strength","Strength feeling 1–10"],
+    ["hunger","Hunger 1–10"],
+    ["stress","Stress outside gym 1–10"],
+    ["volume","More or less volume next block?"],
+    ["best","Lift that felt best"],
+    ["worst","Lift that felt worst / skip?"],
+    ["extra","Anything else"]
+  ];
+  if (!state.checkin[view.week]) state.checkin[view.week] = {};
+  const c = state.checkin[view.week];
+  let html = `<div class="card"><p class="hint">Sunday check-in for week ${view.week}. This is the page I want even if a log is messy.</p></div>`;
+  html += `<div class="card">`;
+  for (const [k,label] of q) {
+    html += `<div style="margin-bottom:10px"><label>${label}</label>
+      <input value="${c[k]||""}" oninput="state.checkin[${view.week}]['${k}']=this.value"></div>`;
+  }
+  html += `</div><button class="primary" onclick="saveAll()">Save check-in</button>`;
+  return html;
+}
+
+function render() {
+  renderTabs();
+  document.getElementById("sub").textContent = view.page==="check"
+    ? `Week ${view.week} check-in`
+    : `${PROGRAM[view.page].name} · Week ${view.week}`;
+  document.getElementById("app").innerHTML = view.page==="check" ? renderCheck() : renderDay();
+}
+
+function summaryText() {
+  let out = `PPL TRACKER EXPORT\nWeek focus: ${view.week}\nGenerated: ${new Date().toLocaleString()}\n\n`;
+  for (const week of [1,2,3,4]) {
+    out += `======== WEEK ${week} ========\n`;
+    for (const day of ["push","pull","legs"]) {
+      const s = state.sessions[day][week];
+      const has = s.date || s.notes || Object.values(s.lifts).some(L => L.sets.some(x => x.w || x.r));
+      if (!has) continue;
+      out += `\n${PROGRAM[day].name.toUpperCase()}  ${s.date||""}\n`;
+      out += `BW ${s.bw||"-"} | Sleep ${s.sleep||"-"} | Energy ${s.energy||"-"} | ${s.minutes||"-"} min\n`;
+      if (s.notes) out += `Notes: ${s.notes}\n`;
+      for (const lift of PROGRAM[day].lifts) {
+        const L = s.lifts[lift.id];
+        const sets = (L.sets||[]).filter(x => x.w || x.r).map((x,i)=>`S${i+1} ${x.w||"?"}x${x.r||"?"}`).join(", ");
+        if (!sets) continue;
+        const est = e1rm(L.sets);
+        out += `- ${lift.name}: ${sets}${L.rpe?`  RPE ${L.rpe}`:""}${est?`  e1RM ${est}`:""}${L.notes?`  (${L.notes})`:""}\n`;
+      }
+    }
+    const c = state.checkin[week] || {};
+    if (Object.values(c).some(Boolean)) {
+      out += `\nCHECK-IN W${week}\n`;
+      for (const [k,v] of Object.entries(c)) if (v) out += `${k}: ${v}\n`;
+    }
+    out += "\n";
+  }
+  return out.trim() + "\n";
+}
+
+async function copyExport() {
+  saveAll();
+  const text = summaryText();
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Copied. Paste it back to Grok");
+  } catch(e) {
+    prompt("Copy this and send it:", text);
+  }
+}
+
+function exportText() {
+  saveAll();
+  const text = summaryText();
+  const blob = new Blob([text], {type:"text/plain"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `PPL-Week${view.week}-export.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("Download started — send that file back");
+}
+
+window.addEventListener("beforeunload", () => {
+  localStorage.setItem(KEY, JSON.stringify(state));
+});
+render();
+</script>
+</body>
+</html>
